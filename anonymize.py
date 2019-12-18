@@ -1,4 +1,3 @@
-
 import os
 import tempfile
 import datetime
@@ -10,69 +9,85 @@ from pydicom import dcmread
 
 class AnonymizeHelper:
     def anonymize(self, ds_original):
-        # file_meta = Dataset()
-        # file_meta.TransferSyntaxUID = ds_original.file_meta.TransferSyntaxUID
-        # file_meta.MediaStorageSOPClassUID = \
-        #     ds_original.file_meta.MediaStorageSOPClassUID
-        # file_meta.MediaStorageSOPInstanceUID = \
-        #     ds_original.file_meta.MediaStorageSOPInstanceUID
-        
-        # BoneAge
-        self.attributes_list = ["Patient's Age", "Patient's Sex", 'Photometric Interpretation', 'Rows', 'Columns', 'Bits Allocated', 'Bits Stored', 'Pixel Data', 'Window Center', 'Window Width'] 
-        # BoneAge 추가
-        self.attributes_list += ["Samples per Pixel", "Pixel Representation"]  
-        # Gravuty
-        self.attributes_list += ['SOP Class UID', 'SOP Instance UID', "Study Instance UID", "Study Description", "Samples Per Pixel", "High Bit", "Pixel Representation", 
-                                'Series Instance UID', 'Planar Configuration'] #   "Patient's Name"
-        # SC
-        self.attributes_list += ['Secondary Capture Device Manufacturer', 'Secondary Capture Device Manufacturers Model Name', 'Secondary Capture Device Software Versions']
+        # https://support.qmenta.com/hc/en-us/articles/209558109-What-is-DICOM-anonymization-
 
-        # 추가
-        self.attributes_list += ['Specific Character Set', 'Modality', 'Body Part Examined', 'Slice Thickness', 'Image Orientation Patient']
-        self.attributes_list += ['Study Date', 'Study Time', 'Accession Number', 'Series Number', 'Series Description']
+        self.attributes_to_be_removed = [
+            "Institution Name",
+            "Referring Physician Identification Sequence",
+            "Physician(s) of Record", 
+            "Physician(s) of Record Identification Sequence",
+            "Performing Physician's Name",
+            "Performing Physician Identification Sequence",
+            "Name Of Physician(s) Reading Study",
+            "Physician(s) Reading Study Identification Sequence",
+            "Patient's Primary Language Code Seq",
+            "Other Patient IDs",
+            "Other Patient Names",
+            "Other Patient IDs Sequence",
+            "Patient's Address",
+            "Patient's Mother's Birth Name",
+            "Issuer Of Patient ID",
+            "Patient's Birth Time",
+            "Patient's Birth Name",
+            "Country Of Residence",
+            "Region Of Residence",
+            "Patient Telephone Numbers",
+            "Current Patient Location",
+            "Patient Institution Residence",
+            "Series Date",
+            "Acquisition Date",
+            "Overlay Date",
+            "Curve Date",
+            "Acquisition Date Time",
+            "Series Time",
+            "Acquisition Time",
+            "Overlay Time",
+            "Curve Time",
+            "Institution Address",
+            "Referring Physician's Address",
+            "Referring Physician's Telephone Number",
+            "Institutional Department Name",
+            "Operators Name",
+            "Date Time",
+            "Date",
+            "Time"
+            ]
+            # Boneage : "Patient's Age",
 
+        self.attributes_to_be_blanked = [
+            "Accession Number",
+            "Patient's Birth Date",
+            "Study Date",
+            "Content Date",
+            "Study Time",
+            "Content Time",
+            "Referring Physician's Name",
+            "Study ID",
+            "Patient's Name",
+            "Patient ID",
+            "Patient's Sex"
+            ]
+
+        self.attributes_to_be_replaced = [
+            "Person's Name"
+            ]
 
         ds = ds_original
         ds.remove_private_tags()
         ds.walk(self.remain_callback)
-        # ds.file_meta = file_meta
-        ds = self.fill_required_tag(ds)
-        return ds
-
-    def fill_required_tag(self, ds):
-        # Patient Module
-        if "PatientName" not in ds:
-            ds.PatientName = ""
-        if "PatientID" not in ds:
-            ds.PatientID = "1"
-        if "PatientBirthDate" not in ds:
-            ds.PatientBirthDate = ""
-        if "PatientSex" not in ds:
-            ds.PatientSex = ""
-        # General Study Module
-        if "StudyDate" not in ds:
-            ds.StudyDate = ""
-        if "StudyTime" not in ds:
-            ds.StudyTime = ""
-        if "ReferringPhysicianName" not in ds:
-            ds.ReferringPhysicianName = ""
-        if "StudyID" not in ds:
-            ds.StudyID = ""
-        if "AccessionNumber" not in ds:
-            ds.AccessionNumber = "1"
-        # General Series Module
-        if "SeriesNumber" not in ds:
-            ds.SeriesNumber = None
-        # General Image Module
-        if "InstanceNumber" not in ds:
-            ds.InstanceNumber = ""
-        ds.StudyDescription = ""
-        ds.SeriesDescription = ""
         return ds
 
     def remain_callback(self, dataset, data_element):
-        if data_element.name not in self.attributes_list:
+        if data_element.name in self.attributes_to_be_removed:
             del dataset[data_element.tag]
+        if data_element.name in  self.attributes_to_be_blanked:
+            #if data_element.VR == "DA":
+            #    dataset[data_element.tag].value = '19000101'
+            #else:
+            dataset[data_element.tag].value = ''
+        if data_element.name in self.attributes_to_be_replaced:
+            dataset[data_element.tag].value = "Anonymized"
+
 
 if __name__ == '__main__':
     """
